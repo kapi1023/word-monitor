@@ -7,13 +7,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/kapi1023/word-monitor/internal/client"
-	infocar "github.com/kapi1023/word-monitor/internal/client"
 	"github.com/kapi1023/word-monitor/internal/config"
+	"github.com/kapi1023/word-monitor/internal/infocar"
 	"github.com/kapi1023/word-monitor/internal/monitor"
+	"github.com/kapi1023/word-monitor/internal/state"
 )
 
-const path = "internal/config/config.yaml"
+const (
+	path      = "internal/config/config.yaml"
+	statePath = "internal/state/state.enc"
+)
 
 func main() {
 	configPath := os.Getenv("CONFIG_PATH")
@@ -21,6 +24,11 @@ func main() {
 		configPath = path
 	}
 	slog.Info("Używana konfiguracja", "path", configPath)
+	statePath := os.Getenv("STATE_PATH")
+	if statePath == "" {
+		statePath = statePath
+	}
+	slog.Info("Używana konfiguracja", "path", statePath)
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -38,6 +46,12 @@ func main() {
 	level := slog.LevelInfo
 	if cfg.Monitor.Debug {
 		level = slog.LevelDebug
+	}
+
+	storage, err := state.New(statePath, cfg.State.SecretKey)
+	if err != nil {
+		slog.Error("Błąd inicjalizacji state storage", "err", err)
+		os.Exit(1)
 	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
@@ -63,7 +77,7 @@ func main() {
 
 		switch choice {
 		case "1":
-			startMonitoring(cfg)
+			startMonitoring(cfg, storage)
 		case "2":
 			cfg.Show()
 		case "3":
@@ -116,8 +130,9 @@ func main() {
 	}
 }
 
-func startMonitoring(cfg *config.Config) {
-	client := client.NewCLient()
+func startMonitoring(cfg *config.Config, storage *state.Storage) {
+	slog.Info("Rozpoczęcie monitoringu...")
+	client := infocar.NewCLient()
 	if err := client.Login(cfg.Credential.Username, cfg.Credential.Password); err != nil {
 		slog.Error("Błąd logowania", "err", err)
 		return
@@ -126,7 +141,7 @@ func startMonitoring(cfg *config.Config) {
 	slog.Info("Zalogowano pomyślnie. Start monitoringu...")
 
 	for {
-		found, _, err := monitor.Check(cfg, client)
+		found, _, err := monitor.Check(cfg, client, storage)
 		if err != nil {
 			slog.Error("Błąd podczas sprawdza7nia dostępności", "err", err)
 		}
