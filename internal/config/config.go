@@ -38,11 +38,15 @@ type Monitor struct {
 	Debug        bool   `yaml:"debug"`
 }
 
+type State struct {
+	SecretKey string `yaml:"secret_key"`
+}
 type Config struct {
 	Credential Credential `yaml:"credential"`
 	Webhook    Webhook    `yaml:"webhook"`
 	Monitor    Monitor    `yaml:"monitor"`
 	Word       WORD       `yaml:"word"`
+	State      State      `yaml:"state"`
 }
 
 const (

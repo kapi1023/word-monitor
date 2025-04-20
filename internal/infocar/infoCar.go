@@ -1,4 +1,4 @@
-package client
+package infocar
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 	"github.com/kapi1023/word-monitor/internal/config"
 )
 
-type Client struct {
+type InfocarClient struct {
 	client       *http.Client
 	token        string
 	tokenExpires time.Time
@@ -37,31 +37,56 @@ type ExamScheduleRequest struct {
 }
 
 type ExamScheduleResponse struct {
-	Schedule struct {
-		ScheduledDays []struct {
-			Day            string `json:"day"`
-			ScheduledHours []struct {
-				Time          string        `json:"time"`
-				PracticeExams []interface{} `json:"practiceExams"`
-			} `json:"scheduledHours"`
-		} `json:"scheduledDays"`
-	} `json:"schedule"`
+	Category       string   `json:"category"`
+	OrganizationId string   `json:"organizationId"`
+	Schedule       Schedule `json:"schedule"`
 }
 
-func NewCLient() *Client {
+type Schedule struct {
+	ScheduledDays []ScheduleDays `json:"scheduledDays"`
+}
+
+type ScheduleDays struct {
+	Day            string           `json:"day"`
+	ScheduledHours []ScheduledHours `json:"scheduledHours"`
+}
+
+type ScheduledHours struct {
+	Time          string          `json:"time"`
+	PracticeExams []PracticeExams `json:"practiceExams"`
+	TheoryExams   []TheoryExams   `json:"theoryExams"`
+}
+
+type PracticeExams struct {
+	ID             string      `json:"id"`
+	Places         int         `json:"places"`
+	Date           string      `json:"date"`
+	Amount         int         `json:"amount"`
+	AdditionalInfo interface{} `json:"additionalInfo"`
+}
+
+type TheoryExams struct {
+	ID             string      `json:"id"`
+	Places         int         `json:"places"`
+	Date           string      `json:"date"`
+	Amount         int         `json:"amount"`
+	AdditionalInfo interface{} `json:"additionalInfo"`
+}
+
+func NewCLient() *InfocarClient {
 	jar, _ := cookiejar.New(nil)
-	return &Client{
+	return &InfocarClient{
 		client: &http.Client{
 			Jar: jar,
 		},
 	}
 }
 
-func (c *Client) DoRequest(req *http.Request, tag string) (*http.Response, error) {
-	if err := c.BearerAuth(req); err != nil {
+func (i *InfocarClient) DoRequest(req *http.Request, tag string) (*http.Response, error) {
+	if err := i.BearerAuth(req); err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Do(req)
+	resp, err := i.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +97,8 @@ func (c *Client) DoRequest(req *http.Request, tag string) (*http.Response, error
 	return resp, nil
 }
 
-func (c *Client) GetCSRFToken(targetURL string) (string, error) {
-	resp, err := c.client.Get(targetURL)
+func (i *InfocarClient) GetCSRFToken(targetURL string) (string, error) {
+	resp, err := i.client.Get(targetURL)
 	if err != nil {
 		return "", err
 	}
@@ -92,8 +117,8 @@ func (c *Client) GetCSRFToken(targetURL string) (string, error) {
 	return csrf, nil
 }
 
-func (c *Client) Login(username, password string) error {
-	csrfToken, err := c.GetCSRFToken(config.UrlLogin)
+func (i *InfocarClient) Login(username, password string) error {
+	csrfToken, err := i.GetCSRFToken(config.UrlLogin)
 	if err != nil {
 		return err
 	}
@@ -115,7 +140,7 @@ func (c *Client) Login(username, password string) error {
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := c.client.Do(req)
+	resp, err := i.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -126,11 +151,11 @@ func (c *Client) Login(username, password string) error {
 		return errors.New("login failed: " + resp.Status)
 	}
 
-	return c.RefreshToken()
+	return i.RefreshToken()
 }
 
-func (c *Client) RefreshToken() error {
-	resp, err := c.client.Get(config.UrlRefresh)
+func (i *InfocarClient) RefreshToken() error {
+	resp, err := i.client.Get(config.UrlRefresh)
 	if err != nil {
 		return err
 	}
@@ -156,30 +181,30 @@ func (c *Client) RefreshToken() error {
 	if err != nil {
 		return err
 	}
-	c.token = token
-	c.tokenExpires = time.Now().Add(duration)
+	i.token = token
+	i.tokenExpires = time.Now().Add(duration)
 
-	slog.Debug("Token", slog.String("bearer", c.token), slog.Time("expires", c.tokenExpires))
+	slog.Debug("Token", slog.String("bearer", i.token), slog.Time("expires", i.tokenExpires))
 	return nil
 }
 
-func (c *Client) BearerAuth(req *http.Request) error {
-	if c.token == "" || time.Now().After(c.tokenExpires) {
+func (i *InfocarClient) BearerAuth(req *http.Request) error {
+	if i.token == "" || time.Now().After(i.tokenExpires) {
 		return errors.New("token is empty or expired")
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Authorization", "Bearer "+i.token)
 	return nil
 }
 
-func (c *Client) GetUserInfo() (*UserInfo, error) {
+func (i *InfocarClient) GetUserInfo() (*UserInfo, error) {
 	req, err := http.NewRequest("GET", config.UrlUserInfo, nil)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.BearerAuth(req); err != nil {
+	if err := i.BearerAuth(req); err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Do(req)
+	resp, err := i.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +223,7 @@ func (c *Client) GetUserInfo() (*UserInfo, error) {
 
 var format string = "2025-04-21T19:23:03.483Z"
 
-func (c *Client) GetExamSchedule(category, wordID string, start, end time.Time) (*ExamScheduleResponse, error) {
+func (i *InfocarClient) GetExamSchedule(category, wordID string, start, end time.Time) (*ExamScheduleResponse, error) {
 	reqBody := ExamScheduleRequest{
 		Category: category,
 		WordID:   wordID,
@@ -211,14 +236,14 @@ func (c *Client) GetExamSchedule(category, wordID string, start, end time.Time) 
 	}
 
 	slog.Debug("ExamScheduleRequest", slog.String("body", string(body)))
-	req, err := http.NewRequest("POST", config.UrlScheadule, strings.NewReader(string(body)))
+	req, err := http.NewRequest("PUT", config.UrlScheadule, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.DoRequest(req, "GetExamSchedule")
+	resp, err := i.DoRequest(req, "GetExamSchedule")
 	if err != nil {
 		return nil, err
 	}
