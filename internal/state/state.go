@@ -22,6 +22,10 @@ type Storage struct {
 
 func New(path, _ string) (*Storage, error) {
 	abs, _ := filepath.Abs(path)
+	_ = os.MkdirAll(filepath.Dir(abs), 0755)
+	if _, err := os.Stat(abs); os.IsNotExist(err) {
+		_ = os.WriteFile(abs, []byte("{}"), 0644)
+	}
 	s := &Storage{
 		path:   abs,
 		latest: make(map[string][]ExamSlot),
