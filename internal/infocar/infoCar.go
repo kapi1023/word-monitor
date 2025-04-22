@@ -379,7 +379,7 @@ func GetWordsByProvince(provinceName string) ([]Word, error) {
 
 	return searchedWords, nil
 }
-func GetWordById(cache *cache.Cache[Word], wordId int) (Word, error) {
+func (i *InfocarClient) GetWordById(cache *cache.Cache[Word], wordId int) (Word, error) {
 	idStr := strconv.Itoa(wordId)
 
 	if cachedWord, err := cache.Get(idStr); err == nil {

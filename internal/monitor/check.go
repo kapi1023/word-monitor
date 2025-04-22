@@ -3,19 +3,6 @@ package monitor
 import (
 	"fmt"
 	"log/slog"
-	"time"
-
-	"github.com/kapi1023/word-monitor/internal/cache"
-	"github.com/kapi1023/word-monitor/internal/config"
-	"github.com/kapi1023/word-monitor/internal/infocar"
-	"github.com/kapi1023/word-monitor/internal/state"
-	"github.com/kapi1023/word-monitor/internal/webhook"
-)
-package monitor
-
-import (
-	"fmt"
-	"log/slog"
 	"strconv"
 	"time"
 
@@ -37,14 +24,10 @@ func Check(cfg *config.Config, i *infocar.InfocarClient, storage *state.Storage,
 
 	key := state.Key(cfg.Word.WordId, cfg.Word.Category)
 	var messages []string
-	var word *infocar.Word
-	var err error
-	word, err = i.GetWordById(c, cfg.Word.WordId)
+	var word infocar.Word
+	wordId, _ := strconv.Atoi(cfg.Word.WordId)
+	word, err = i.GetWordById(c, wordId)
 	if err != nil {
-		word, err =i.GetWordById(c, cfg.Word.WordId)
-		if err == nil{
-			continue
-		}
 		slog.Warn("Nie udało się pobrać danych WORD", "id", cfg.Word.WordId, "error", err)
 	}
 
@@ -66,9 +49,9 @@ func Check(cfg *config.Config, i *infocar.InfocarClient, storage *state.Storage,
 				day.Day,
 				hour.Time,
 				word.Name,
-				word.City,
+				word.Address,
 				cfg.Word.Category,
-				strconv.Itoa(cfg.Word.WordId),
+				cfg.Word.WordId,
 				len(hour.PracticeExams),
 				len(hour.TheoryExams),
 			)
