@@ -147,7 +147,7 @@ func startMonitoring(cfg *config.Config, storage *state.Storage, c *cache.Cache[
 		if err != nil {
 			slog.Error("Błąd podczas sprawdza7nia dostępności", "err", err)
 		}
-		if !found && cfg.Monitor.Debug {
+		if !found {
 			slog.Debug("Brak dostępnych terminów")
 		}
 		time.Sleep(time.Duration(cfg.Monitor.Interval) * time.Second)
