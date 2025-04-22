@@ -5,13 +5,28 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/kapi1023/word-monitor/internal/cache"
+	"github.com/kapi1023/word-monitor/internal/config"
+	"github.com/kapi1023/word-monitor/internal/infocar"
+	"github.com/kapi1023/word-monitor/internal/state"
+	"github.com/kapi1023/word-monitor/internal/webhook"
+)
+package monitor
+
+import (
+	"fmt"
+	"log/slog"
+	"strconv"
+	"time"
+
+	"github.com/kapi1023/word-monitor/internal/cache"
 	"github.com/kapi1023/word-monitor/internal/config"
 	"github.com/kapi1023/word-monitor/internal/infocar"
 	"github.com/kapi1023/word-monitor/internal/state"
 	"github.com/kapi1023/word-monitor/internal/webhook"
 )
 
-func Check(cfg *config.Config, i *infocar.InfocarClient, storage *state.Storage) (bool, string, error) {
+func Check(cfg *config.Config, i *infocar.InfocarClient, storage *state.Storage, c *cache.Cache[infocar.Word]) (bool, string, error) {
 	now := time.Now()
 	end := now.Add(time.Duration(cfg.Word.MaxDays) * 24 * time.Hour)
 
@@ -22,6 +37,16 @@ func Check(cfg *config.Config, i *infocar.InfocarClient, storage *state.Storage)
 
 	key := state.Key(cfg.Word.WordId, cfg.Word.Category)
 	var messages []string
+	var word *infocar.Word
+	var err error
+	word, err = i.GetWordById(c, cfg.Word.WordId)
+	if err != nil {
+		word, err =i.GetWordById(c, cfg.Word.WordId)
+		if err == nil{
+			continue
+		}
+		slog.Warn("Nie udało się pobrać danych WORD", "id", cfg.Word.WordId, "error", err)
+	}
 
 	for _, day := range schedule.Schedule.ScheduledDays {
 		examDate, err := time.Parse("2006-01-02", day.Day)
@@ -36,13 +61,14 @@ func Check(cfg *config.Config, i *infocar.InfocarClient, storage *state.Storage)
 			if storage.Exists(key, day.Day, hour.Time) {
 				continue
 			}
-
 			msg := fmt.Sprintf(
-				"**Wolny termin egzaminu!**\n📅 Data: `%s`\n⏰ Godzina: `%s`\n📍 Kategoria: `%s`\n🆔 WORD ID: `%s`\n📂 Praktyczne: `%d`\n🤦‍♂️ Teoretyczne: `%d`",
+				"**Wolny termin egzaminu!**\n📅 Data: `%s`\n⏰ Godzina: `%s`\n📍 WORD: `%s (%s)`\n📁 Kategoria: `%s`\n🆔 ID: `%s`\n📂 Praktyczne: `%d`\n🤦‍♂️ Teoretyczne: `%d`",
 				day.Day,
 				hour.Time,
+				word.Name,
+				word.City,
 				cfg.Word.Category,
-				cfg.Word.WordId,
+				strconv.Itoa(cfg.Word.WordId),
 				len(hour.PracticeExams),
 				len(hour.TheoryExams),
 			)

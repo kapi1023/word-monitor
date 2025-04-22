@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/kapi1023/word-monitor/internal/cache"
 	"github.com/kapi1023/word-monitor/internal/config"
 	"github.com/kapi1023/word-monitor/internal/infocar"
 	"github.com/kapi1023/word-monitor/internal/monitor"
@@ -57,6 +58,7 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 	reader := bufio.NewScanner(os.Stdin)
+	c := cache.New[infocar.Word]()
 
 	for {
 		fmt.Println("\n--- WORD MONITOR ---")
@@ -77,7 +79,7 @@ func main() {
 
 		switch choice {
 		case "1":
-			startMonitoring(cfg, storage)
+			startMonitoring(cfg, storage, c)
 		case "2":
 			cfg.Show()
 		case "3":
@@ -130,7 +132,7 @@ func main() {
 	}
 }
 
-func startMonitoring(cfg *config.Config, storage *state.Storage) {
+func startMonitoring(cfg *config.Config, storage *state.Storage, c *cache.Cache[infocar.Word]) {
 	slog.Info("Rozpoczęcie monitoringu...")
 	client := infocar.NewCLient()
 	if err := client.Login(cfg.Credential.Username, cfg.Credential.Password); err != nil {
@@ -141,7 +143,7 @@ func startMonitoring(cfg *config.Config, storage *state.Storage) {
 	slog.Info("Zalogowano pomyślnie. Start monitoringu...")
 
 	for {
-		found, _, err := monitor.Check(cfg, client, storage)
+		found, _, err := monitor.Check(cfg, client, storage, c)
 		if err != nil {
 			slog.Error("Błąd podczas sprawdza7nia dostępności", "err", err)
 		}
