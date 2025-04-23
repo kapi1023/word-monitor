@@ -12,6 +12,7 @@ import (
 	"github.com/kapi1023/word-monitor/internal/infocar"
 	"github.com/kapi1023/word-monitor/internal/monitor"
 	"github.com/kapi1023/word-monitor/internal/state"
+	"github.com/kapi1023/word-monitor/internal/webhook"
 )
 
 const (
@@ -141,15 +142,30 @@ func startMonitoring(cfg *config.Config, storage *state.Storage, c *cache.Cache[
 	}
 
 	slog.Info("Zalogowano pomyślnie. Start monitoringu...")
-
+	var i int
 	for {
 		found, _, err := monitor.Check(cfg, client, storage, c)
 		if err != nil {
-			slog.Error("Błąd podczas sprawdza7nia dostępności", "err", err)
+			if err.Error() == "token is empty or expired" {
+				slog.Info("Token wygasł, ponowne logowanie...")
+				if err := client.Login(cfg.Credential.Username, cfg.Credential.Password); err != nil {
+					slog.Error("Błąd logowania", "err", err)
+					return
+				}
+				slog.Info("Zalogowano pomyślnie. Start monitoringu...")
+				continue
+			}
+			slog.Error("Błąd podczas sprawdzania dostępności", "err", err)
 		}
 		if !found {
 			slog.Debug("Brak dostępnych terminów")
 		}
 		time.Sleep(time.Duration(cfg.Monitor.Interval) * time.Second)
+		i++
+		if i%10 == 0 {
+			webhook.Send(cfg, "Health check")
+			slog.Debug("Wysłano health check")
+		}
+
 	}
 }
