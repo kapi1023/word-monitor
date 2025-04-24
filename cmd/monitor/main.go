@@ -112,7 +112,7 @@ func main() {
 			}
 			fmt.Println("--- DOSTĘPNE WORDY W WOJEWÓDZTWIE ---")
 			for _, word := range words {
-				fmt.Printf("ID: %i, Nazwa: %s\n", word.ID, word.Name)
+				fmt.Printf("ID: %v, Nazwa: %s\n", word.ID, word.Name)
 			}
 		case "7":
 			regions, err := infocar.GetProvinces()
@@ -162,10 +162,9 @@ func startMonitoring(cfg *config.Config, storage *state.Storage, c *cache.Cache[
 		}
 		time.Sleep(time.Duration(cfg.Monitor.Interval) * time.Second)
 		i++
-		if i%10 == 0 {
-			webhook.Send(cfg, "Health check")
+		if cfg.Monitor.HealthCheckInterval != 0 && i%cfg.Monitor.HealthCheckInterval == 0 {
+			webhook.Send(cfg.Webhook.DiscordHealthCheckUrl, "Health check")
 			slog.Debug("Wysłano health check")
 		}
-
 	}
 }

@@ -6,16 +6,14 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-
-	"github.com/kapi1023/word-monitor/internal/config"
 )
 
 type discordPayload struct {
 	Content string `json:"content"`
 }
 
-func Send(cfg *config.Config, message string) error {
-	if cfg.Webhook.DistordUrl == "" {
+func Send(discordUrl string, message string) error {
+	if discordUrl == "" {
 		return errors.New("brakuje adresu Discord webhook")
 	}
 
@@ -27,7 +25,7 @@ func Send(cfg *config.Config, message string) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", cfg.Webhook.DistordUrl, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", discordUrl, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

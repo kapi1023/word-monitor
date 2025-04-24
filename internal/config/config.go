@@ -20,7 +20,8 @@ type Credential struct {
 }
 
 type Webhook struct {
-	DistordUrl string `yaml:"discord_url"`
+	DiscordURL            string `yaml:"discord_url"`
+	DiscordHealthCheckUrl string `yaml:"discord_health_check_url"`
 }
 
 type WORD struct {
@@ -30,12 +31,15 @@ type WORD struct {
 }
 
 type Monitor struct {
-	UrlLogin     string `yaml:"url_login"`
-	UrlCheck     string `yaml:"url_check"`
-	Interval     int    `yaml:"interval"`
-	Proxy        bool   `yaml:"proxy"`
-	ProxyAddress string `yaml:"proxy_address"`
-	Debug        bool   `yaml:"debug"`
+	UrlLogin            string `yaml:"url_login"`
+	UrlCheck            string `yaml:"url_check"`
+	Interval            int    `yaml:"interval"`
+	HealthCheckInterval int    `yaml:"health_check_interval"`
+	Proxy               bool   `yaml:"proxy"`
+	ProxyAddress        string `yaml:"proxy_address"`
+	Debug               bool   `yaml:"debug"`
+	PracticeExams       bool   `yaml:"practice_exams"`
+	TheoryExams         bool   `yaml:"theory_exams"`
 }
 
 type State struct {
@@ -106,7 +110,7 @@ func (c *Config) Show() {
 	fmt.Printf("Interval (sekundy): %d\n", c.Monitor.Interval)
 	fmt.Printf("Proxy: %t (%s)\n", c.Monitor.Proxy, c.Monitor.ProxyAddress)
 
-	fmt.Printf("Discord: %s\n", c.Webhook.DistordUrl)
+	fmt.Printf("Discord: %s\n", c.Webhook.DiscordURL)
 }
 
 func (c *Config) Edit() {
@@ -165,9 +169,14 @@ func (c *Config) Edit() {
 	c.Monitor.UrlLogin = input("URL logowania", c.Monitor.UrlLogin)
 	c.Monitor.UrlCheck = input("URL sprawdzania", c.Monitor.UrlCheck)
 	c.Monitor.Interval = inputInt("Interwał (sekundy)", c.Monitor.Interval)
+	c.Monitor.HealthCheckInterval = inputInt("Interwał sprawdzania zdrowia ilosc interwalow", c.Monitor.HealthCheckInterval)
 	c.Monitor.Proxy = inputBool("Używać proxy?", c.Monitor.Proxy)
 	c.Monitor.ProxyAddress = input("Adres proxy", c.Monitor.ProxyAddress)
+	c.Monitor.Debug = inputBool("Debug", c.Monitor.Debug)
+	c.Monitor.PracticeExams = inputBool("Sprawdzać praktyczne egzaminy? puste = false", c.Monitor.PracticeExams)
+	c.Monitor.TheoryExams = inputBool("Sprawdzać teoretyczne egzaminy? puste = false", c.Monitor.TheoryExams)
 
 	// Webhook
-	c.Webhook.DistordUrl = input("Discord webhook URL", c.Webhook.DistordUrl)
+	c.Webhook.DiscordURL = input("Discord webhook URL", c.Webhook.DiscordURL)
+	c.Webhook.DiscordHealthCheckUrl = input("Discord webhook URL health check", c.Webhook.DiscordHealthCheckUrl)
 }
